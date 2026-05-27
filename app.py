@@ -325,12 +325,32 @@ def render_probability_chart(probabilities: dict[int, float]) -> None:
     st.altair_chart(chart, use_container_width=True)
 
 
+def render_preprocessing_details(raw_text: str, cleaned_text: str) -> None:
+    with st.expander("Chi tiết tiền xử lý"):
+        compare_df = pd.DataFrame(
+            [
+                {"Loại": "Raw text", "Nội dung": raw_text},
+                {"Loại": "Cleaned text", "Nội dung": cleaned_text or "<empty>"},
+            ]
+        )
+        st.dataframe(compare_df, use_container_width=True, hide_index=True)
+
+
 def render_prediction_result(model_name: str, user_text: str) -> None:
     model = get_cached_model(model_name)
     result = predict_text(model, user_text)
 
     st.divider()
     st.markdown('<div class="section-title">Kết quả dự đoán</div>', unsafe_allow_html=True)
+
+    if not result.validation.is_valid:
+        st.warning(
+            result.validation.message
+            or "Văn bản chưa đủ thông tin để phân tích. Vui lòng nhập một câu rõ ngữ cảnh hơn."
+        )
+        render_preprocessing_details(result.raw_text, result.cleaned_text)
+        return
+
     st.markdown(
         f"""
         <div class="result-card">
@@ -338,7 +358,7 @@ def render_prediction_result(model_name: str, user_text: str) -> None:
             <div class="result-value">{escape(model_name)}</div>
             <div style="height: 0.75rem;"></div>
             <div class="result-label">Nhãn dự đoán</div>
-            <div class="result-value">Nhãn {result.predicted_label} - {escape(result.predicted_name)}</div>
+            <div class="result-value">Nhãn {result.predicted_label} - {escape(result.predicted_name or "")}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -349,15 +369,7 @@ def render_prediction_result(model_name: str, user_text: str) -> None:
     st.write("")
     render_probability_chart(result.probabilities)
 
-    with st.expander("Chi tiết tiền xử lý"):
-        compare_df = pd.DataFrame(
-            [
-                {"Loại": "Raw text", "Nội dung": result.raw_text},
-                {"Loại": "Cleaned text", "Nội dung": result.cleaned_text or "<empty>"},
-            ]
-        )
-        st.dataframe(compare_df, use_container_width=True, hide_index=True)
-
+    render_preprocessing_details(result.raw_text, result.cleaned_text)
 
 def render_input_area() -> str:
     st.divider()
